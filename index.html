@@ -1,0 +1,48 @@
+<!DOCTYPE html>
+<html lang="sv">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Min Hemsida – Inloggning</title>
+  <link rel="stylesheet" href="style.css">
+</head>
+<body>
+  <div class="login-container">
+    <h1>Välkommen</h1>
+    <form>
+      <input type="email" name="email" placeholder="E-post" required>
+      <input type="password" name="password" placeholder="Lösenord" required>
+      <button type="submit">Logga in</button>
+    </form>
+    <a href="#">Glömt lösenord?</a>
+  </div>
+</body>
+<script>
+  document.querySelector('form').addEventListener('submit', async (e) => {
+    e.preventDefault();
+
+    const email = e.target.email.value;
+    const password = e.target.password.value;
+
+    try {
+      const res = await fetch('https://hemsida-backend.onrender.com', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ email, password })
+      });
+
+      const data = await res.json();
+
+      if (res.ok) {
+        localStorage.setItem('token', data.token);
+        window.location.href = 'dashboard.html';
+      } else {
+        alert(data.msg);
+      }
+    } catch (err) {
+      alert('Kunde inte ansluta till servern');
+    }
+  });
+</script>
+</html>
+

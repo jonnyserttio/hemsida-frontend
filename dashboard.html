@@ -1,0 +1,174 @@
+<!DOCTYPE html>
+<html lang="sv">
+<head>
+  <meta charset="UTF-8">
+  <title>Dashboard</title>
+  <link rel="stylesheet" href="style.css">
+</head>
+<body>
+  <div class="dashboard">
+    <h1>Dashboard</h1>
+    <nav>
+  <button onclick="showSection('compliance')">Efterlevnad</button>
+  <button onclick="showSection('risk')">Riskanalys</button>
+  <button onclick="showSection('docs')">Ledningssystem</button>
+</nav>
+
+<div id="compliance" class="section">
+  <h2>Efterlevnadskontroll</h2>
+  <ul id="checklist">
+    <!-- Dynamisk checklista -->
+  </ul>
+  <button onclick="saveChecklist()">Spara</button>
+</div>
+
+<div id="risk" class="section" style="display:none">
+  <h2>Riskanalys</h2>
+  <form id="riskForm">
+    <input type="text" id="riskTitle" placeholder="Riskbeskrivning" required>
+    <select id="probability">
+      <option value="1">Sannolikhet: 1 (Låg)</option>
+      <option value="2">2</option>
+      <option value="3">3</option>
+      <option value="4">4</option>
+      <option value="5">5 (Hög)</option>
+    </select>
+    <select id="impact">
+      <option value="1">Konsekvens: 1 (Låg)</option>
+      <option value="2">2</option>
+      <option value="3">3</option>
+      <option value="4">4</option>
+      <option value="5">5 (Hög)</option>
+    </select>
+    <button type="submit">Lägg till risk</button>
+  </form>
+
+  <ul id="riskList"></ul>
+</div>
+
+
+<div id="docs" class="section" style="display:none">
+  <h2>Ledningssystem</h2>
+  <p>Kommer snart...</p>
+</div>
+
+<script>
+  const checklistItems = ['Brandutgångar kontrollerade', 'Första hjälpen-material', 'Skyddsutrustning tillgänglig'];
+
+  function showSection(id) {
+    document.querySelectorAll('.section').forEach(div => div.style.display = 'none');
+    document.getElementById(id).style.display = 'block';
+  }
+
+  function renderChecklist(saved = []) {
+    const list = document.getElementById('checklist');
+    list.innerHTML = '';
+    checklistItems.forEach(item => {
+      const li = document.createElement('li');
+      const checkbox = document.createElement('input');
+      checkbox.type = 'checkbox';
+      checkbox.checked = saved.includes(item);
+      checkbox.dataset.item = item;
+      li.appendChild(checkbox);
+      li.append(` ${item}`);
+      list.appendChild(li);
+    });
+  }
+
+  function saveChecklist() {
+    const checkedItems = Array.from(document.querySelectorAll('#checklist input:checked')).map(cb => cb.dataset.item);
+    fetch('http://localhost:5000/api/compliance/save', {
+      method: 'POST',
+      headers: {
+        'Content-Type': 'application/json',
+        'x-auth-token': localStorage.getItem('token')
+      },
+      body: JSON.stringify({ items: checkedItems })
+    })
+    .then(res => res.json())
+    .then(data => alert(data.msg))
+    .catch(() => alert('Fel vid sparande.'));
+  }
+
+  window.onload = () => {
+    fetch('http://localhost:5000/api/compliance/load', {
+      headers: { 'x-auth-token': localStorage.getItem('token') }
+    })
+    .then(res => res.json())
+    .then(data => renderChecklist(data.items))
+    .catch(() => renderChecklist());
+  };
+</script>
+
+    <p id="message">Laddar...</p>
+    <button onclick="logout()">Logga ut</button>
+  </div>
+
+  <script>
+    const token = localStorage.getItem('token');
+    if (!token) {
+      window.location.href = 'index.html';
+    }
+
+    fetch('https://hemsida-backend.onrender.com', {
+      headers: { 'x-auth-token': token }
+    })
+    .then(res => res.json())
+    .then(data => {
+      document.getElementById('message').innerText = data.msg;
+    })
+    .catch(() => {
+      localStorage.removeItem('token');
+      window.location.href = 'index.html';
+    });
+
+    function logout() {
+      localStorage.removeItem('token');
+      window.location.href = 'index.html';
+    }
+    document.getElementById('riskForm').addEventListener('submit', async function(e) {
+  e.preventDefault();
+
+  const title = document.getElementById('riskTitle').value;
+  const probability = parseInt(document.getElementById('probability').value);
+  const impact = parseInt(document.getElementById('impact').value);
+
+  const res = await fetch('http://localhost:5000/api/risk/add', {
+    method: 'POST',
+    headers: {
+      'Content-Type': 'application/json',
+      'x-auth-token': localStorage.getItem('token')
+    },
+    body: JSON.stringify({ title, probability, impact })
+  });
+
+  const data = await res.json();
+  if (res.ok) {
+    document.getElementById('riskForm').reset();
+    loadRisks();
+  } else {
+    alert(data.msg);
+  }
+});
+
+async function loadRisks() {
+  const res = await fetch('http://localhost:5000/api/risk/all', {
+    headers: { 'x-auth-token': localStorage.getItem('token') }
+  });
+
+  const data = await res.json();
+  const list = document.getElementById('riskList');
+  list.innerHTML = '';
+
+  data.forEach(risk => {
+    const li = document.createElement('li');
+    li.textContent = `${risk.title} – Riskvärde: ${risk.probability * risk.impact} (S${risk.probability} x K${risk.impact})`;
+    list.appendChild(li);
+  });
+}
+
+loadRisks();
+
+  </script>
+</body>
+</html>
