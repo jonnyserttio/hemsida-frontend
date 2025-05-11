@@ -1,176 +1,77 @@
 <!DOCTYPE html>
 <html lang="sv">
 <head>
-  <meta charset="UTF-8">
-  <title>Dashboard</title>
-  <link rel="stylesheet" href="style.css">
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0"/>
+  <title>Dashboard – Malte Månson</title>
+  <link rel="stylesheet" href="style.css"/>
 </head>
 <body>
-  <div class="dashboard">
-    <h1>Dashboard</h1>
-    <nav>
-      <button onclick="showSection('compliance')">Efterlevnad</button>
-      <button onclick="showSection('risk')">Riskanalys</button>
-      <button onclick="showSection('docs')">Ledningssystem</button>
-    </nav>
+  <div class="container">
+    <aside class="sidebar">
+      <h2 class="logo">Malte Månson<br><span>Uppsala</span></h2>
+      <nav>
+        <button onclick="showSection('overview')">Översikt</button>
+        <button onclick="showSection('compliance')">Efterlevnad</button>
+        <button onclick="showSection('risk')">Riskanalys</button>
+        <button onclick="showSection('docs')">Ledningssystem</button>
+        <button onclick="logout()">Logga ut</button>
+      </nav>
+    </aside>
 
-    <div id="compliance" class="section">
-      <h2>Efterlevnadskontroll</h2>
-      <ul id="checklist"></ul>
-      <button onclick="saveChecklist()">Spara</button>
-    </div>
+    <main class="main-content">
+      <header class="topbar">
+        <h1>Dashboard</h1>
+      </header>
 
-    <div id="risk" class="section" style="display:none">
-      <h2>Riskanalys</h2>
-      <form id="riskForm">
-        <input type="text" id="riskTitle" placeholder="Riskbeskrivning" required>
-        <select id="probability">
-          <option value="1">Sannolikhet: 1 (Låg)</option>
-          <option value="2">2</option>
-          <option value="3">3</option>
-          <option value="4">4</option>
-          <option value="5">5 (Hög)</option>
-        </select>
-        <select id="impact">
-          <option value="1">Konsekvens: 1 (Låg)</option>
-          <option value="2">2</option>
-          <option value="3">3</option>
-          <option value="4">4</option>
-          <option value="5">5 (Hög)</option>
-        </select>
-        <button type="submit">Lägg till risk</button>
-      </form>
-      <ul id="riskList"></ul>
-    </div>
+      <section id="overview" class="card-grid">
+        <div class="card">✔ Aktiv efterlevnad: <span id="complianceStatus">...</span></div>
+        <div class="card">⚠ Totala risker: <span id="riskCount">...</span></div>
+        <div class="card">📁 Dokument: <span id="docCount">...</span></div>
+      </section>
 
-    <div id="docs" class="section" style="display:none">
-      <h2>Ledningssystem</h2>
-      <p>Kommer snart...</p>
-    </div>
-
-    <p id="message">Laddar...</p>
-    <button onclick="logout()">Logga ut</button>
+      <!-- Fler sektioner laddas dynamiskt -->
+    </main>
   </div>
 
   <script>
-    const backendURL = 'https://hemsida-backend.onrender.com';
-
     const token = localStorage.getItem('token');
-    console.log('Token i dashboard:', token);
+    if (!token) window.location.href = 'index.html';
 
-    if (!token) {
-      window.location.href = 'index.html';
+    function showSection(id) {
+      // Här kan du bygga ut sektionerna dynamiskt senare
+      alert("Laddar: " + id);
     }
-
-    // Verifiera token
-    fetch(`${backendURL}/api/auth/verify`, {
-      headers: { 'x-auth-token': token }
-    })
-    .then(res => {
-      if (!res.ok) throw new Error('Ogiltig token');
-      return res.json();
-    })
-    .then(data => {
-      document.getElementById('message').innerText = data.msg;
-    })
-    .catch(() => {
-      localStorage.removeItem('token');
-      window.location.href = 'index.html';
-    });
 
     function logout() {
       localStorage.removeItem('token');
       window.location.href = 'index.html';
     }
 
-    const checklistItems = ['Brandutgångar kontrollerade', 'Första hjälpen-material', 'Skyddsutrustning tillgänglig'];
+    // Hämta statistikdata (mock)
+    document.addEventListener('DOMContentLoaded', async () => {
+      try {
+        const resCompliance = await fetch('https://hemsida-backend.onrender.com/api/compliance/load', {
+          headers: { 'x-auth-token': token }
+        });
+        const data = await resCompliance.json();
+        document.getElementById('complianceStatus').innerText = data.items?.length ?? '0';
 
-    function showSection(id) {
-      document.querySelectorAll('.section').forEach(div => div.style.display = 'none');
-      document.getElementById(id).style.display = 'block';
-    }
+        const resRisk = await fetch('https://hemsida-backend.onrender.com/api/risk/all', {
+          headers: { 'x-auth-token': token }
+        });
+        const risks = await resRisk.json();
+        document.getElementById('riskCount').innerText = risks?.length ?? '0';
 
-    function renderChecklist(saved = []) {
-      const list = document.getElementById('checklist');
-      list.innerHTML = '';
-      checklistItems.forEach(item => {
-        const li = document.createElement('li');
-        const checkbox = document.createElement('input');
-        checkbox.type = 'checkbox';
-        checkbox.checked = saved.includes(item);
-        checkbox.dataset.item = item;
-        li.appendChild(checkbox);
-        li.append(` ${item}`);
-        list.appendChild(li);
-      });
-    }
-
-    function saveChecklist() {
-      const checkedItems = Array.from(document.querySelectorAll('#checklist input:checked')).map(cb => cb.dataset.item);
-      fetch(`${backendURL}/api/compliance/save`, {
-        method: 'POST',
-        headers: {
-          'Content-Type': 'application/json',
-          'x-auth-token': token
-        },
-        body: JSON.stringify({ items: checkedItems })
-      })
-      .then(res => res.json())
-      .then(data => alert(data.msg))
-      .catch(() => alert('Fel vid sparande.'));
-    }
-
-    window.onload = () => {
-      fetch(`${backendURL}/api/compliance/load`, {
-        headers: { 'x-auth-token': token }
-      })
-      .then(res => res.json())
-      .then(data => renderChecklist(data.items))
-      .catch(() => renderChecklist());
-
-      loadRisks();
-    };
-
-    document.getElementById('riskForm').addEventListener('submit', async function(e) {
-      e.preventDefault();
-
-      const title = document.getElementById('riskTitle').value;
-      const probability = parseInt(document.getElementById('probability').value);
-      const impact = parseInt(document.getElementById('impact').value);
-
-      const res = await fetch(`${backendURL}/api/risk/add`, {
-        method: 'POST',
-        headers: {
-          'Content-Type': 'application/json',
-          'x-auth-token': token
-        },
-        body: JSON.stringify({ title, probability, impact })
-      });
-
-      const data = await res.json();
-      if (res.ok) {
-        document.getElementById('riskForm').reset();
-        loadRisks();
-      } else {
-        alert(data.msg);
+        document.getElementById('docCount').innerText = '0'; // Uppdatera när dokumentsystem finns
+      } catch {
+        document.getElementById('complianceStatus').innerText = 'Fel';
+        document.getElementById('riskCount').innerText = 'Fel';
       }
     });
-
-    async function loadRisks() {
-      const res = await fetch(`${backendURL}/api/risk/all`, {
-        headers: { 'x-auth-token': token }
-      });
-
-      const data = await res.json();
-      const list = document.getElementById('riskList');
-      list.innerHTML = '';
-
-      data.forEach(risk => {
-        const li = document.createElement('li');
-        li.textContent = `${risk.title} – Riskvärde: ${risk.probability * risk.impact} (S${risk.probability} x K${risk.impact})`;
-        list.appendChild(li);
-      });
-    }
+  </script>
+</body>
+</html>
   </script>
 </body>
 </html>
